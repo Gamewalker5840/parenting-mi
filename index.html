@@ -2071,6 +2071,43 @@ footer .sources .src-url{display:block;margin-top:2px;font-size:12px;color:var(-
       n.parentNode.removeChild(n);
     });
 
+    /* 自动生成目录：手册三节 + 正文各章（h2）+ 各节（h3） */
+    var tocItems = [
+      { lv: 0, id: 'exp-sec-1', num: '一', text: '本次评价数据' },
+      { lv: 0, id: 'exp-sec-2', num: '二', text: '作答明细（64 题）' },
+      { lv: 0, id: 'exp-sec-3', num: '三', text: '对应培养方案' }
+    ];
+    Array.prototype.forEach.call(clone.querySelectorAll('section'), function (sec) {
+      if (!sec.id) return;
+      var h2 = sec.querySelector('.sec-head h2') || sec.querySelector('h2');
+      if (!h2) return;
+      var numEl = sec.querySelector('.sec-head .sec-num');
+      tocItems.push({
+        lv: 1, id: sec.id,
+        num: numEl ? numEl.textContent.trim() : '',
+        text: h2.textContent.trim()
+      });
+      Array.prototype.forEach.call(sec.querySelectorAll('h3'), function (h3, i) {
+        var hid = sec.id + '-h' + (i + 1);
+        h3.setAttribute('id', hid);
+        var raw = h3.textContent.trim();
+        var mt = raw.match(/^(\d+\.\d+)\s+(.*)$/);
+        tocItems.push({
+          lv: 2, id: hid,
+          num: mt ? mt[1] : '',
+          text: mt ? mt[2] : raw
+        });
+      });
+    });
+    var tocHTML = '<nav class="exp-toc" aria-label="目录"><div class="exp-toc-h">目录' +
+      '<span class="hint">点击条目可跳转 · 页码按 A4 打印推算</span></div><ol>' +
+      tocItems.map(function (it) {
+        return '<li class="lv' + it.lv + '"><a href="#' + it.id + '">' +
+          '<span class="n">' + esc(it.num) + '</span>' +
+          '<span class="t">' + esc(it.text) + '</span>' +
+          '<span class="pg" data-ref="' + it.id + '"></span></a></li>';
+      }).join('') + '</ol></nav>';
+
     var styleText = Array.prototype.map.call(document.querySelectorAll('style'), function (n) {
       return n.textContent;
     }).join('\n');
@@ -2080,7 +2117,7 @@ footer .sources .src-url{display:block;margin-top:2px;font-size:12px;color:var(-
       'body.exp .wrap{max-width:820px;margin:0 auto;padding:30px 26px 64px}',
       'body.exp .sidebar,body.exp .fab,body.exp .btn,body.exp .hero{display:none!important}',
       'body.exp section{padding:26px 0 6px}',
-      '.exp-cover{padding:10px 0 24px;border-bottom:2px solid #C14E2B;margin-bottom:6px}',
+      '.exp-cover{padding:10px 0 24px;border-bottom:2px solid #C14E2B;margin-bottom:6px;page-break-inside:avoid}',
       '.exp-cover .k{color:#C14E2B;font-size:11px;letter-spacing:.22em;font-weight:700}',
       '.exp-cover h1{font-size:30px;line-height:1.2;margin:10px 0 12px}',
       '.exp-cover .meta{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:12.5px;color:#6F6458}',
@@ -2098,8 +2135,54 @@ footer .sources .src-url{display:block;margin-top:2px;font-size:12px;color:var(-
       '.exp-ans tr.on td{color:#C14E2B;font-weight:700}',
       '.exp-ans tr.on td.l{font-weight:600}',
       '.exp-foot{margin-top:18px;padding-top:12px;border-top:1px solid #E0D3C1;font-size:11.5px;line-height:1.7;color:#6F6458}',
-      '@media print{body.exp .wrap{padding:0}.exp-cover{page-break-after:avoid}.exp-sec>h2{page-break-after:avoid}}'
+      '.exp-toc{margin:20px 0 8px;padding:16px 18px;border:1px solid #E0D3C1;border-radius:10px;background:#FBF7F0}',
+      '.exp-toc-h{font-size:13px;font-weight:700;letter-spacing:.06em;color:#C14E2B;margin:0 0 8px}',
+      '.exp-toc .hint{float:right;font-weight:400;font-size:11px;color:#8A7E6F;letter-spacing:0}',
+      '.exp-toc ol{list-style:none;margin:0;padding:0}',
+      '.exp-toc a{display:block;position:relative;text-decoration:none;color:#26221C;font-size:12.5px;' +
+        'line-height:1.5;padding:3px 3.2em 2px 0;border-bottom:1px dashed #CFBFA9}',
+      '.exp-toc a:hover,.exp-toc a:focus{color:#C14E2B;background:rgba(193,78,43,.06)}',
+      '.exp-toc .n{display:inline-block;min-width:2.4em;color:#C14E2B;font-weight:700;font-size:11.5px;' +
+        'font-variant-numeric:tabular-nums}',
+      '.exp-toc .t{display:inline}',
+      '.exp-toc .pg{position:absolute;right:0;bottom:2px;min-width:2.6em;text-align:right;' +
+        'color:#6F6458;font-size:11.5px;font-variant-numeric:tabular-nums;background:#FBF7F0}',
+      '.exp-toc a::after{content:target-counter(attr(href url), page);position:absolute;right:0;' +
+        'bottom:2px;min-width:2.6em;text-align:right;color:#6F6458;font-size:11.5px;' +
+        'font-variant-numeric:tabular-nums;background:#FBF7F0}',
+      '.exp-toc a::after{content:target-counter(attr(href), page)}',
+      '.exp-toc li.lv0 a{font-weight:700;font-size:13px;padding-top:7px}',
+      '.exp-toc li.lv1 a{padding-left:18px}',
+      '.exp-toc li.lv1 a .t{font-weight:600}',
+      '.exp-toc li.lv2 a{padding-left:40px;font-size:12px}',
+      '.exp-toc li.lv2 a .n{color:#8A7E6F;font-weight:600}',
+      'body.exp :target{background:rgba(193,78,43,.10);border-radius:4px}',
+      '@page{size:A4;margin:16mm 14mm;@bottom-center{content:counter(page) " / " counter(pages);' +
+        'font-size:9.5px;color:#8A7E6F}}',
+      '@media print{.exp-toc{page-break-inside:avoid;background:none}body.exp .wrap{padding:0}' +
+        '.exp-cover{page-break-after:avoid}.exp-sec>h2{page-break-after:avoid}' +
+        '.exp-toc a{color:#26221C}.exp-toc .hint{display:none}}'
     ].join('\n');
+
+    /* 页码兜底：引擎不支持 target-counter 时，按 A4 内容宽度离屏测量后填入 */
+    var measure = [
+      '<script>',
+      '(function(){try{',
+      'if(window.CSS&&CSS.supports&&CSS.supports("content","target-counter(attr(href url), page)"))return;',
+      'var A4W=794,A4H=1123,cw=A4W-14*2*96/25.4,ph=A4H-16*2*96/25.4;',
+      'var wrap=document.querySelector(".wrap");if(!wrap)return;',
+      'var holder=document.createElement("div");',
+      'holder.style.cssText="position:absolute;top:0;left:-99999px;width:"+cw+"px;visibility:hidden;";',
+      'var probe=wrap.cloneNode(true);probe.style.padding="0";probe.style.margin="0";probe.style.maxWidth="none";holder.appendChild(probe);document.body.appendChild(holder);',
+      'var base=probe.getBoundingClientRect().top;',
+      'Array.prototype.forEach.call(document.querySelectorAll(".exp-toc .pg"),function(pg){',
+      'var id=pg.getAttribute("data-ref");if(!id)return;',
+      'var el=probe.querySelector("#"+(window.CSS&&CSS.escape?CSS.escape(id):id));if(!el)return;',
+      'var top=el.getBoundingClientRect().top-base;',
+      'pg.textContent=Math.max(1,Math.floor(top/ph)+1);});',
+      'document.body.removeChild(holder);}catch(e){}})();',
+      '<' + '/scr' + 'ipt>',
+    ].join('');
 
     var html = '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">' +
       '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
@@ -2110,8 +2193,8 @@ footer .sources .src-url{display:block;margin-top:2px;font-size:12px;color:var(-
       '<h1>孩子的多元智能<br>评价结果与培养方案</h1>' +
       '<div class="meta"><span>导出日期：' + ds + '</span><span>本次勾选：' + total + ' / 64 题</span>' +
       '<span>姓名：____________</span><span>作答人：____________</span></div>' +
-      '</header>' +
-      '<section class="exp-sec"><h2>一、本次评价数据</h2>' +
+      '</header>' + tocHTML +
+      '<section class="exp-sec" id="exp-sec-1"><h2>一、本次评价数据</h2>' +
       '<p class="exp-lead"><b>总分</b> ' + total + ' 分；<b>优势前三</b>：' +
       top3.map(function (t) { return MI[t.i].name + ' ' + t.v + ' 分'; }).join('、') +
       '；<b>待补两项</b>：' + low2.map(function (t) { return MI[t.i].name + ' ' + t.v + ' 分'; }).join('、') +
@@ -2122,14 +2205,14 @@ footer .sources .src-url{display:block;margin-top:2px;font-size:12px;color:var(-
       '<p class="exp-lead" style="font-size:11.5px;color:#6F6458">分档参照：A 7–8 分 · 优势区；B 5–6 分 · 良好区；' +
       'C 3–4 分 · 常态区；D 1–2 分 · 待唤醒区；E 0 分 · 未显现。</p>' +
       '</section>' +
-      '<section class="exp-sec"><h2>二、作答明细（64 题）</h2>' +
+      '<section class="exp-sec" id="exp-sec-2"><h2>二、作答明细（64 题）</h2>' +
       '<table class="exp-ans"><thead><tr><th style="width:8%">题号</th><th style="width:14%">所属智能</th>' +
       '<th style="width:8%">勾选</th><th>题干</th></tr></thead><tbody>' + ansRows + '</tbody></table>' +
       '</section>' +
-      '<section class="exp-sec"><h2>三、对应培养方案</h2>' + clone.innerHTML + '</section>' +
+      '<section class="exp-sec" id="exp-sec-3"><h2>三、对应培养方案</h2>' + clone.innerHTML + '</section>' +
       '<p class="exp-foot">本手册由“多元智能家庭评价与培养方案”网页版按 ' + ds + ' 的作答数据一键导出，共勾选 ' +
       total + ' 题。用于家庭观察与亲子对话，不构成心理或医学诊断。可用浏览器打印（Ctrl/⌘ + P）或“另存为 PDF”保存。</p>' +
-      '</div></body></html>';
+      '</div>' + measure + '</body></html>';
 
     var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
     var url = URL.createObjectURL(blob);
